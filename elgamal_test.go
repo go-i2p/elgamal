@@ -241,3 +241,18 @@ func TestBug2_ModInverseFailure(t *testing.T) {
 		t.Error("Expected zero for invalid ciphertext (c1=0)")
 	}
 }
+
+// TestBug3_NegativeMessageValues verifies Bug #3: negative message validation
+func TestBug3_NegativeMessageValues(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Negative message should be rejected
+	negativeMsg := big.NewInt(-100)
+	_, _, err = Encrypt(rand.Reader, &priv.PublicKey, negativeMsg)
+	if err == nil {
+		t.Error("Expected error for negative message, got nil")
+	}
+}

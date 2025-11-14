@@ -109,8 +109,9 @@ func GenerateKey(random io.Reader, bitSize int) (*PrivateKey, error) {
 
 // Encrypt encrypts a message using ElGamal encryption
 func Encrypt(random io.Reader, pub *PublicKey, message *big.Int) (*big.Int, *big.Int, error) {
-	if message.Cmp(pub.P) >= 0 {
-		return nil, nil, errors.New("message too large for key size")
+	// Validate message is in valid range [0, p-1)
+	if message.Sign() < 0 || message.Cmp(pub.P) >= 0 {
+		return nil, nil, errors.New("message must be in range [0, p-1)")
 	}
 
 	// Generate random k in range [1, p-2]
