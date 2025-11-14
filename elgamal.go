@@ -17,11 +17,19 @@ type PublicKey struct {
 	Y *big.Int // public key value
 }
 
-// Encrypt encrypts a message using ElGamal encryption for the public key
-// Note: Messages are treated as numeric values. Leading zero bytes will be lost
-// during the encryption/decryption round-trip due to big.Int encoding behavior.
-// For arbitrary binary data, consider using a higher-level protocol that includes
-// message length encoding.
+// Encrypt encrypts a message using ElGamal encryption for the public key.
+//
+// Important: Messages are treated as numeric values (big.Int). The numeric value
+// is preserved during encryption/decryption, but the byte-level representation
+// may change. Specifically, leading zero bytes in the input will be stripped when
+// converting to big.Int and will not be restored during decryption.
+//
+// Example: []byte{0x00, 0x00, 0x01, 0x02} encrypts and decrypts correctly, but
+// the decrypted result will be []byte{0x01, 0x02} (same numeric value, different
+// byte representation).
+//
+// For arbitrary binary data where exact byte sequences must be preserved, use a
+// higher-level protocol that includes message length encoding.
 func (p *PublicKey) Encrypt(randReader io.Reader, msg []byte) (ciphertext []byte, err error) {
 	if randReader == nil {
 		randReader = rand.Reader
