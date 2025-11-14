@@ -17,6 +17,10 @@ type PublicKey struct {
 }
 
 // Encrypt encrypts a message using ElGamal encryption for the public key
+// Note: Messages are treated as numeric values. Leading zero bytes will be lost
+// during the encryption/decryption round-trip due to big.Int encoding behavior.
+// For arbitrary binary data, consider using a higher-level protocol that includes
+// message length encoding.
 func (p *PublicKey) Encrypt(randReader io.Reader, msg []byte) (ciphertext []byte, err error) {
 	if randReader == nil {
 		randReader = rand.Reader
@@ -30,9 +34,11 @@ func (p *PublicKey) Encrypt(randReader io.Reader, msg []byte) (ciphertext []byte
 		return nil, err
 	}
 
-	// Concatenate c1 and c2 into a single byte slice
-	c1Bytes := c1.Bytes()
-	c2Bytes := c2.Bytes()
+	// Serialize c1 and c2 with fixed length equal to the modulus size
+	// This ensures equal-length encoding as required by the design specification
+	modulusBytes := (p.P.BitLen() + 7) / 8 // Convert bit length to byte length
+	c1Bytes := c1.FillBytes(make([]byte, modulusBytes))
+	c2Bytes := c2.FillBytes(make([]byte, modulusBytes))
 
 	ciphertext = append(c1Bytes, c2Bytes...)
 	return ciphertext, nil
@@ -46,15 +52,15 @@ type PrivateKey struct {
 
 // Decrypt implements crypto.Decrypter.
 func (p *PrivateKey) Decrypt(randReader io.Reader, msg []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
-	if randReader == nil {
-		randReader = rand.Reader
-	}
+	// Note: randReader is unused because ElGamal decryption is deterministic.
+	// The parameter is required by the crypto.Decrypter interface.
+
 	// Split msg into c1 and c2
 	if len(msg) < 2 {
 		return nil, errors.New("ciphertext too short")
 	}
 
-	// Determine split point (half of message)
+	// Split at midpoint - both components have equal length (modulus size)
 	mid := len(msg) / 2
 	c1 := new(big.Int).SetBytes(msg[:mid])
 	c2 := new(big.Int).SetBytes(msg[mid:])

@@ -9,13 +9,15 @@ This library provides a minimal, security-focused implementation of ElGamal encr
 ## Features
 
 - Pure Go implementation with no C dependencies
-- Constant-time operations where applicable
 - Minimal API surface for reduced attack vectors
 - Well-tested cryptographic primitives
+- Comprehensive input validation and error handling
 
 ## Security Notice
 
 This implementation is intended for specific use cases where ElGamal is required. For general-purpose public key cryptography, consider using established alternatives like RSA or elliptic curve cryptography from the standard library.
+
+**Important:** This implementation uses `math/big` for arbitrary-precision arithmetic, which is not constant-time. The library may be vulnerable to timing side-channel attacks. Use appropriate security measures when deploying in sensitive environments.
 
 ## Status
 
