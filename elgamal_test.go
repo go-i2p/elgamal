@@ -121,6 +121,23 @@ func TestInvalidKeySize(t *testing.T) {
 	}
 }
 
+// TestMaximumKeySize verifies maximum key size enforcement
+func TestMaximumKeySize(t *testing.T) {
+	// Test sizes above maximum
+	testCases := []int{16385, 20000, 100000}
+
+	for _, size := range testCases {
+		_, err := GenerateKey(rand.Reader, size)
+		if err == nil {
+			t.Errorf("Expected error for key size %d, got nil", size)
+		}
+	}
+
+	// Note: We don't test that 16384 works here because generating such a large
+	// prime would take an extremely long time. The validation logic ensures it
+	// would be accepted if generation completed.
+}
+
 // TestShortCiphertext verifies handling of malformed ciphertext
 func TestShortCiphertext(t *testing.T) {
 	priv, err := GenerateKey(rand.Reader, 512)
