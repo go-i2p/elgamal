@@ -113,7 +113,7 @@ func Encrypt(random io.Reader, pub *PublicKey, message *big.Int) (*big.Int, *big
 	if pub == nil || message == nil {
 		return nil, nil, errors.New("public key and message must not be nil")
 	}
-	
+
 	// Validate message is in valid range [0, p-1)
 	if message.Sign() < 0 || message.Cmp(pub.P) >= 0 {
 		return nil, nil, errors.New("message must be in range [0, p-1)")
