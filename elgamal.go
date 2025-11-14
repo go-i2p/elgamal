@@ -135,7 +135,7 @@ func Encrypt(random io.Reader, pub *PublicKey, message *big.Int) (*big.Int, *big
 // Decrypt decrypts a ciphertext using ElGamal decryption
 func Decrypt(priv *PrivateKey, c1, c2 *big.Int) *big.Int {
 	// Validate inputs to prevent nil pointer dereference
-	if c1 == nil || c2 == nil {
+	if priv == nil || c1 == nil || c2 == nil {
 		// Return zero on invalid input rather than panicking
 		// This maintains the function signature while handling the error case
 		return big.NewInt(0)

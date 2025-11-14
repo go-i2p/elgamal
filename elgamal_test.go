@@ -210,3 +210,16 @@ func TestNilCiphertextComponents(t *testing.T) {
 		t.Error("Expected zero for both nil")
 	}
 }
+
+// TestBug1_NilPrivateKeyInDecrypt verifies Bug #1: nil PrivateKey handling
+func TestBug1_NilPrivateKeyInDecrypt(t *testing.T) {
+	// Should not panic when priv is nil
+	var priv *PrivateKey = nil
+	c1 := big.NewInt(100)
+	c2 := big.NewInt(200)
+
+	result := Decrypt(priv, c1, c2)
+	if result.Cmp(big.NewInt(0)) != 0 {
+		t.Error("Expected zero for nil PrivateKey")
+	}
+}
