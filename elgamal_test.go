@@ -309,3 +309,23 @@ func TestBug5_DecryptErrorPropagation(t *testing.T) {
 		t.Error("Expected error for invalid ciphertext (c1=0), got nil")
 	}
 }
+
+// TestBug6_OddLengthCiphertext verifies Bug #6: odd-length ciphertext rejection
+func TestBug6_OddLengthCiphertext(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Create odd-length ciphertext (129 bytes)
+	oddCiphertext := make([]byte, 129)
+	for i := range oddCiphertext {
+		oddCiphertext[i] = byte(i)
+	}
+
+	// Decrypt should return an error for odd-length ciphertext
+	_, err = priv.Decrypt(rand.Reader, oddCiphertext, nil)
+	if err == nil {
+		t.Error("Expected error for odd-length ciphertext, got nil")
+	}
+}

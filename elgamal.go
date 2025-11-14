@@ -59,6 +59,9 @@ func (p *PrivateKey) Decrypt(randReader io.Reader, msg []byte, opts crypto.Decry
 	if len(msg) < 2 {
 		return nil, errors.New("ciphertext too short")
 	}
+	if len(msg)%2 != 0 {
+		return nil, errors.New("ciphertext must have even length")
+	}
 
 	// Split at midpoint - both components have equal length (modulus size)
 	mid := len(msg) / 2
