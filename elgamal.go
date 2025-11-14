@@ -146,6 +146,11 @@ func Decrypt(priv *PrivateKey, c1, c2 *big.Int) *big.Int {
 
 	// Calculate modular inverse of c1^x
 	inv := new(big.Int).ModInverse(c1x, priv.P)
+	if inv == nil {
+		// No modular inverse exists (e.g., c1 = 0 or gcd(c1^x, p) != 1)
+		// Return zero to indicate invalid ciphertext
+		return big.NewInt(0)
+	}
 
 	// Calculate message = c2 * inv mod p
 	message := new(big.Int).Mul(c2, inv)

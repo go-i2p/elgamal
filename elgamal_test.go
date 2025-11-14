@@ -223,3 +223,21 @@ func TestBug1_NilPrivateKeyInDecrypt(t *testing.T) {
 		t.Error("Expected zero for nil PrivateKey")
 	}
 }
+
+// TestBug2_ModInverseFailure verifies Bug #2: ModInverse failure handling
+func TestBug2_ModInverseFailure(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// c1 = 0 will cause c1^x = 0, and ModInverse(0, p) returns nil
+	c1 := big.NewInt(0)
+	c2 := big.NewInt(100)
+
+	// Should not panic when ModInverse returns nil
+	result := Decrypt(priv, c1, c2)
+	if result.Cmp(big.NewInt(0)) != 0 {
+		t.Error("Expected zero for invalid ciphertext (c1=0)")
+	}
+}
