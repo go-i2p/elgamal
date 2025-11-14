@@ -66,7 +66,10 @@ func (p *PrivateKey) Decrypt(randReader io.Reader, msg []byte, opts crypto.Decry
 	c2 := new(big.Int).SetBytes(msg[mid:])
 
 	// Decrypt and convert result to bytes
-	plainInt := Decrypt(p, c1, c2)
+	plainInt, err := Decrypt(p, c1, c2)
+	if err != nil {
+		return nil, fmt.Errorf("decryption failed: %w", err)
+	}
 	return plainInt.Bytes(), nil
 }
 
@@ -139,12 +142,13 @@ func Encrypt(random io.Reader, pub *PublicKey, message *big.Int) (*big.Int, *big
 }
 
 // Decrypt decrypts a ciphertext using ElGamal decryption
-func Decrypt(priv *PrivateKey, c1, c2 *big.Int) *big.Int {
+func Decrypt(priv *PrivateKey, c1, c2 *big.Int) (*big.Int, error) {
 	// Validate inputs to prevent nil pointer dereference
-	if priv == nil || c1 == nil || c2 == nil {
-		// Return zero on invalid input rather than panicking
-		// This maintains the function signature while handling the error case
-		return big.NewInt(0)
+	if priv == nil {
+		return nil, errors.New("private key must not be nil")
+	}
+	if c1 == nil || c2 == nil {
+		return nil, errors.New("ciphertext components must not be nil")
 	}
 
 	// Calculate c1^x mod p
@@ -154,13 +158,12 @@ func Decrypt(priv *PrivateKey, c1, c2 *big.Int) *big.Int {
 	inv := new(big.Int).ModInverse(c1x, priv.P)
 	if inv == nil {
 		// No modular inverse exists (e.g., c1 = 0 or gcd(c1^x, p) != 1)
-		// Return zero to indicate invalid ciphertext
-		return big.NewInt(0)
+		return nil, errors.New("invalid ciphertext: no modular inverse exists")
 	}
 
 	// Calculate message = c2 * inv mod p
 	message := new(big.Int).Mul(c2, inv)
 	message.Mod(message, priv.P)
 
-	return message
+	return message, nil
 }

@@ -54,7 +54,10 @@ func TestEncryptFunctionRoundTrip(t *testing.T) {
 		t.Fatalf("Encrypt failed: %v", err)
 	}
 
-	decrypted := Decrypt(priv, c1, c2)
+	decrypted, err := Decrypt(priv, c1, c2)
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
 	decryptedBytes := decrypted.Bytes()
 
 	if !bytes.Equal(message, decryptedBytes) {
@@ -193,21 +196,21 @@ func TestNilCiphertextComponents(t *testing.T) {
 	}
 
 	// Test with nil c1
-	result := Decrypt(priv, nil, big.NewInt(100))
-	if result.Cmp(big.NewInt(0)) != 0 {
-		t.Error("Expected zero for nil c1")
+	_, err = Decrypt(priv, nil, big.NewInt(100))
+	if err == nil {
+		t.Error("Expected error for nil c1")
 	}
 
 	// Test with nil c2
-	result = Decrypt(priv, big.NewInt(100), nil)
-	if result.Cmp(big.NewInt(0)) != 0 {
-		t.Error("Expected zero for nil c2")
+	_, err = Decrypt(priv, big.NewInt(100), nil)
+	if err == nil {
+		t.Error("Expected error for nil c2")
 	}
 
 	// Test with both nil
-	result = Decrypt(priv, nil, nil)
-	if result.Cmp(big.NewInt(0)) != 0 {
-		t.Error("Expected zero for both nil")
+	_, err = Decrypt(priv, nil, nil)
+	if err == nil {
+		t.Error("Expected error for both nil")
 	}
 }
 
@@ -218,9 +221,9 @@ func TestBug1_NilPrivateKeyInDecrypt(t *testing.T) {
 	c1 := big.NewInt(100)
 	c2 := big.NewInt(200)
 
-	result := Decrypt(priv, c1, c2)
-	if result.Cmp(big.NewInt(0)) != 0 {
-		t.Error("Expected zero for nil PrivateKey")
+	_, err := Decrypt(priv, c1, c2)
+	if err == nil {
+		t.Error("Expected error for nil PrivateKey")
 	}
 }
 
@@ -236,9 +239,9 @@ func TestBug2_ModInverseFailure(t *testing.T) {
 	c2 := big.NewInt(100)
 
 	// Should not panic when ModInverse returns nil
-	result := Decrypt(priv, c1, c2)
-	if result.Cmp(big.NewInt(0)) != 0 {
-		t.Error("Expected zero for invalid ciphertext (c1=0)")
+	_, err = Decrypt(priv, c1, c2)
+	if err == nil {
+		t.Error("Expected error for invalid ciphertext (c1=0)")
 	}
 }
 
@@ -282,5 +285,27 @@ func TestBug4_NilMessageInEncrypt(t *testing.T) {
 	_, _, err = Encrypt(rand.Reader, &priv.PublicKey, msg)
 	if err == nil {
 		t.Error("Expected error for nil message, got nil")
+	}
+}
+
+// TestBug5_DecryptErrorPropagation verifies Bug #5: error propagation in Decrypt
+func TestBug5_DecryptErrorPropagation(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Create invalid ciphertext (c1=0 will cause ModInverse to fail)
+	modulusBytes := (priv.P.BitLen() + 7) / 8
+	invalidCiphertext := make([]byte, modulusBytes*2)
+	// c1 bytes are all zeros, c2 has some value
+	for i := modulusBytes; i < len(invalidCiphertext); i++ {
+		invalidCiphertext[i] = 0x42
+	}
+
+	// Decrypt should return an error for invalid ciphertext
+	_, err = priv.Decrypt(rand.Reader, invalidCiphertext, nil)
+	if err == nil {
+		t.Error("Expected error for invalid ciphertext (c1=0), got nil")
 	}
 }
