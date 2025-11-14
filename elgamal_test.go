@@ -329,3 +329,131 @@ func TestBug6_OddLengthCiphertext(t *testing.T) {
 		t.Error("Expected error for odd-length ciphertext, got nil")
 	}
 }
+
+// TestBug7_PublicKeySerialization verifies Bug #7: PublicKey serialization
+func TestBug7_PublicKeySerialization(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Marshal the public key
+	data, err := priv.PublicKey.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary failed: %v", err)
+	}
+
+	// Unmarshal into a new public key
+	var pub2 PublicKey
+	err = pub2.UnmarshalBinary(data)
+	if err != nil {
+		t.Fatalf("UnmarshalBinary failed: %v", err)
+	}
+
+	// Verify the keys match
+	if priv.PublicKey.P.Cmp(pub2.P) != 0 {
+		t.Error("P mismatch after serialization")
+	}
+	if priv.PublicKey.G.Cmp(pub2.G) != 0 {
+		t.Error("G mismatch after serialization")
+	}
+	if priv.PublicKey.Y.Cmp(pub2.Y) != 0 {
+		t.Error("Y mismatch after serialization")
+	}
+}
+
+// TestBug7_PrivateKeySerialization verifies Bug #7: PrivateKey serialization
+func TestBug7_PrivateKeySerialization(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+
+	// Marshal the private key
+	data, err := priv.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary failed: %v", err)
+	}
+
+	// Unmarshal into a new private key
+	var priv2 PrivateKey
+	err = priv2.UnmarshalBinary(data)
+	if err != nil {
+		t.Fatalf("UnmarshalBinary failed: %v", err)
+	}
+
+	// Verify the keys match
+	if priv.P.Cmp(priv2.P) != 0 {
+		t.Error("P mismatch after serialization")
+	}
+	if priv.G.Cmp(priv2.G) != 0 {
+		t.Error("G mismatch after serialization")
+	}
+	if priv.Y.Cmp(priv2.Y) != 0 {
+		t.Error("Y mismatch after serialization")
+	}
+	if priv.X.Cmp(priv2.X) != 0 {
+		t.Error("X mismatch after serialization")
+	}
+
+	// Verify they can decrypt the same ciphertext
+	message := []byte("Test serialization")
+	ciphertext, err := priv.PublicKey.Encrypt(rand.Reader, message)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	plaintext1, err := priv.Decrypt(rand.Reader, ciphertext, nil)
+	if err != nil {
+		t.Fatalf("Decrypt with original key failed: %v", err)
+	}
+
+	plaintext2, err := priv2.Decrypt(rand.Reader, ciphertext, nil)
+	if err != nil {
+		t.Fatalf("Decrypt with deserialized key failed: %v", err)
+	}
+
+	if !bytes.Equal(plaintext1, plaintext2) {
+		t.Error("Decrypted plaintexts don't match")
+	}
+}
+
+// TestBug7_InvalidPublicKeySerialization verifies error handling
+func TestBug7_InvalidPublicKeySerialization(t *testing.T) {
+	// Test nil public key
+	var pub *PublicKey = nil
+	_, err := pub.MarshalBinary()
+	if err == nil {
+		t.Error("Expected error for nil PublicKey, got nil")
+	}
+
+	// Test unmarshaling invalid data
+	var pub2 PublicKey
+	err = pub2.UnmarshalBinary([]byte{1, 2, 3})
+	if err == nil {
+		t.Error("Expected error for invalid data, got nil")
+	}
+
+	// Test unmarshaling empty data
+	err = pub2.UnmarshalBinary([]byte{})
+	if err == nil {
+		t.Error("Expected error for empty data, got nil")
+	}
+}
+
+// TestBug7_InvalidPrivateKeySerialization verifies error handling
+func TestBug7_InvalidPrivateKeySerialization(t *testing.T) {
+	// Test nil private key
+	var priv *PrivateKey = nil
+	_, err := priv.MarshalBinary()
+	if err == nil {
+		t.Error("Expected error for nil PrivateKey, got nil")
+	}
+
+	// Test unmarshaling invalid data
+	var priv2 PrivateKey
+	err = priv2.UnmarshalBinary([]byte{1, 2, 3})
+	if err == nil {
+		t.Error("Expected error for invalid data, got nil")
+	}
+}

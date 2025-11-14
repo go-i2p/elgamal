@@ -3,6 +3,7 @@ package elgamal
 import (
 	"crypto"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -44,6 +45,85 @@ func (p *PublicKey) Encrypt(randReader io.Reader, msg []byte) (ciphertext []byte
 	return ciphertext, nil
 }
 
+// MarshalBinary encodes the PublicKey to binary format
+// Format: [len(P)][P][len(G)][G][len(Y)][Y] where lengths are 4-byte big-endian
+func (pub *PublicKey) MarshalBinary() ([]byte, error) {
+	if pub == nil || pub.P == nil || pub.G == nil || pub.Y == nil {
+		return nil, errors.New("invalid public key: nil fields")
+	}
+
+	pBytes := pub.P.Bytes()
+	gBytes := pub.G.Bytes()
+	yBytes := pub.Y.Bytes()
+
+	// Calculate total size: 3 * 4 bytes (lengths) + data
+	size := 12 + len(pBytes) + len(gBytes) + len(yBytes)
+	result := make([]byte, size)
+
+	offset := 0
+	// Write P
+	binary.BigEndian.PutUint32(result[offset:], uint32(len(pBytes)))
+	offset += 4
+	copy(result[offset:], pBytes)
+	offset += len(pBytes)
+
+	// Write G
+	binary.BigEndian.PutUint32(result[offset:], uint32(len(gBytes)))
+	offset += 4
+	copy(result[offset:], gBytes)
+	offset += len(gBytes)
+
+	// Write Y
+	binary.BigEndian.PutUint32(result[offset:], uint32(len(yBytes)))
+	offset += 4
+	copy(result[offset:], yBytes)
+
+	return result, nil
+}
+
+// UnmarshalBinary decodes a PublicKey from binary format
+func (pub *PublicKey) UnmarshalBinary(data []byte) error {
+	if len(data) < 12 {
+		return errors.New("data too short for public key")
+	}
+
+	offset := 0
+
+	// Read P
+	pLen := binary.BigEndian.Uint32(data[offset:])
+	offset += 4
+	if offset+int(pLen) > len(data) {
+		return errors.New("invalid P length")
+	}
+	pub.P = new(big.Int).SetBytes(data[offset : offset+int(pLen)])
+	offset += int(pLen)
+
+	// Read G
+	if offset+4 > len(data) {
+		return errors.New("data too short for G length")
+	}
+	gLen := binary.BigEndian.Uint32(data[offset:])
+	offset += 4
+	if offset+int(gLen) > len(data) {
+		return errors.New("invalid G length")
+	}
+	pub.G = new(big.Int).SetBytes(data[offset : offset+int(gLen)])
+	offset += int(gLen)
+
+	// Read Y
+	if offset+4 > len(data) {
+		return errors.New("data too short for Y length")
+	}
+	yLen := binary.BigEndian.Uint32(data[offset:])
+	offset += 4
+	if offset+int(yLen) > len(data) {
+		return errors.New("invalid Y length")
+	}
+	pub.Y = new(big.Int).SetBytes(data[offset : offset+int(yLen)])
+
+	return nil
+}
+
 // PrivateKey represents an ElGamal private key
 type PrivateKey struct {
 	PublicKey
@@ -79,6 +159,76 @@ func (p *PrivateKey) Decrypt(randReader io.Reader, msg []byte, opts crypto.Decry
 // Public implements crypto.Signer.
 func (p *PrivateKey) Public() crypto.PublicKey {
 	return &p.PublicKey
+}
+
+// MarshalBinary encodes the PrivateKey to binary format
+// Format: [PublicKey encoding][len(X)][X]
+func (priv *PrivateKey) MarshalBinary() ([]byte, error) {
+	if priv == nil || priv.X == nil {
+		return nil, errors.New("invalid private key: nil fields")
+	}
+
+	// Marshal the public key part
+	pubBytes, err := priv.PublicKey.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %w", err)
+	}
+
+	xBytes := priv.X.Bytes()
+
+	// Total size: public key + 4 bytes (X length) + X data
+	result := make([]byte, len(pubBytes)+4+len(xBytes))
+
+	offset := 0
+	copy(result[offset:], pubBytes)
+	offset += len(pubBytes)
+
+	// Write X
+	binary.BigEndian.PutUint32(result[offset:], uint32(len(xBytes)))
+	offset += 4
+	copy(result[offset:], xBytes)
+
+	return result, nil
+}
+
+// UnmarshalBinary decodes a PrivateKey from binary format
+func (priv *PrivateKey) UnmarshalBinary(data []byte) error {
+	if len(data) < 16 { // Minimum: 12 bytes for public key + 4 bytes for X length
+		return errors.New("data too short for private key")
+	}
+
+	// First, unmarshal the public key part
+	// We need to determine where the public key ends
+	// We'll unmarshal into a temporary public key first
+	tempPub := &PublicKey{}
+	if err := tempPub.UnmarshalBinary(data); err != nil {
+		return fmt.Errorf("failed to unmarshal public key: %w", err)
+	}
+
+	// Calculate the size of the public key encoding
+	pubBytes, err := tempPub.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to re-marshal public key: %w", err)
+	}
+	pubSize := len(pubBytes)
+
+	if pubSize+4 > len(data) {
+		return errors.New("data too short for X length")
+	}
+
+	// Copy the public key fields
+	priv.PublicKey = *tempPub
+
+	// Read X
+	offset := pubSize
+	xLen := binary.BigEndian.Uint32(data[offset:])
+	offset += 4
+	if offset+int(xLen) > len(data) {
+		return errors.New("invalid X length")
+	}
+	priv.X = new(big.Int).SetBytes(data[offset : offset+int(xLen)])
+
+	return nil
 }
 
 // GenerateKey generates a new ElGamal key pair
