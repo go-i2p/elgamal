@@ -256,3 +256,31 @@ func TestBug3_NegativeMessageValues(t *testing.T) {
 		t.Error("Expected error for negative message, got nil")
 	}
 }
+
+// TestBug4_NilPublicKeyInEncrypt verifies Bug #4: nil PublicKey handling
+func TestBug4_NilPublicKeyInEncrypt(t *testing.T) {
+	// Should not panic when pub is nil
+	var pub *PublicKey = nil
+	msg := big.NewInt(100)
+	
+	_, _, err := Encrypt(rand.Reader, pub, msg)
+	if err == nil {
+		t.Error("Expected error for nil PublicKey, got nil")
+	}
+}
+
+// TestBug4_NilMessageInEncrypt verifies Bug #4: nil message handling
+func TestBug4_NilMessageInEncrypt(t *testing.T) {
+	priv, err := GenerateKey(rand.Reader, 512)
+	if err != nil {
+		t.Fatalf("GenerateKey failed: %v", err)
+	}
+	
+	// Should not panic when message is nil
+	var msg *big.Int = nil
+	
+	_, _, err = Encrypt(rand.Reader, &priv.PublicKey, msg)
+	if err == nil {
+		t.Error("Expected error for nil message, got nil")
+	}
+}
