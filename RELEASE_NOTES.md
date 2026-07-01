@@ -1,4 +1,4 @@
-Release notes for: `elgamal` Version `0.1.65`
+Release notes for: `elgamal` Version `0.1.66`
 ==============================================
 
 This file is generated automatically in order to keep git tags in sync.
